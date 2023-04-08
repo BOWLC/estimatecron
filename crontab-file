@@ -5,7 +5,7 @@
 15 4 * * sun   weekly-backup
 #
 # start thinking about the project....
-0 10 22 7 mon  deep-thought
+0 10 22 9 mon  deep-thought
 #
 # submit my project automatically, just in case I forget!
 59 16 16 8 *   submit-project

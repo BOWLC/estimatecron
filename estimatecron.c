@@ -14,17 +14,22 @@
 const char months[12][4] = {"jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov"};
 const char days[7][4] = {"mon", "tue", "wed", "thu", "fri", "sat", "sun"};
 
-int checkmin(int minute);
-int checkhour(int hour);
-int checkdaymonth(int day);
-int checkmonth(int month);
-int checkdayweek(int day);
-int checkIntArg(char a);
+int checkMonthWord(char *arg);
+int checkDayWord(char *arg);
+int checkStar(char *arg);
+int checkMin(int minute);
+int checkHour(int hour);
+int checkDayMonth(int day);
+int checkMonth(int month);
+int checkDayWeek(int day);
+int checkIntArg(char *a);
 int checkArgLen(int maxlen, int charpos);
 void addArg(char *dest, char *word, int wordlen);
-void printCron(char cronWords[][6][COMMAND_MAX], int numCron, int numargs);
+void printargs(char fileargs[][6][COMMAND_MAX], int numCron, int numargs);
 int getWordLen(int Type, int wordno);
-int getcron(char *argv, char cronWords[][6][40], int* numCron, int Type);
+int getFile(char *argv, char fileargs[][6][40], int* numCron, int Type);
+int checkCron(char fileargs[][6][40], int linenum);
+int checkEstimates(char fileargs[][6][40], int linenum);
 
 int main(int argc, char *argv[]){
 
@@ -35,53 +40,136 @@ int main(int argc, char *argv[]){
 	int* numcronp = &numcron;
 	int* numestimatesp = &numestimates;
 
-	getcron(argv[2],cronwords, numcronp, 0);//crontab
-	getcron(argv[3],estimates, numestimatesp, 1); 
+	getFile(argv[2],cronwords, numcronp, 0);//crontab
+	getFile(argv[3],estimates, numestimatesp, 1); 
 	printf("COMPLETED.  FOUND %d VALID LINES...........\n", numcron);
-	printCron(cronwords, numcron, 6);
-	printCron(estimates, numestimates, 2);
+	printargs(cronwords, numcron, 6);
+	printargs(estimates, numestimates, 2);
+	if(checkCron(cronwords, numcron)){
+		printf("\nError: Incorrect argument values in cron file\n");
+		exit(EXIT_FAILURE);
+	}
 	return 0;
 }	
 
-int checkmin(int minute){
+/* ===checkCron===
+ * check each argument is correct type and range in cron file
+ * TODO: improve the dictionary search with hash maps
+ */
+int checkCron(char fileargs[][6][40], int linenum){
+	printf("CHECKING CRON FILE --------\n");
+	for(int i = 0; i < linenum; i++){
+		printf("\n");
+		for(int j = 0; j < 5; j++){
+				printf("\t%s/%d",fileargs[i][j], atoi(fileargs[i][j]));
+			switch(j){
+				case 0:/*minute*/
+					if(!checkStar(fileargs[i][j])) break;
+					if(checkIntArg(fileargs[i][j])){
+						printf("\nError: checkIntArg failed\n");
+						return 1;
+					}
+					if(checkMin(atoi(fileargs[i][j])))return 1;
+					break;
+				case 1:/*hour*/
+					if(!checkStar(fileargs[i][j])) break;
+					if(checkIntArg(fileargs[i][j])){
+						printf("\nError: checkIntArg failed\n");
+						return 1;
+					}
+					if(checkHour(atoi(fileargs[i][j])))return 1;
+					break;
+				case 2:/*day of month*/
+					if(!checkStar(fileargs[i][j])) break;
+					if(checkIntArg(fileargs[i][j])){
+						printf("\nError: checkIntArg failed\n");
+						return 1;
+					}
+					if(checkDayMonth(atoi(fileargs[i][j])))return 1;
+					break;
+				case 3:/*month*/
+					if(!checkStar(fileargs[i][j])) break;
+					if(!checkMonthWord(fileargs[i][j])) break;
+					if(checkIntArg(fileargs[i][j])){
+						printf("\nError: checkIntArg failed\n");
+						return 1;
+					}
+					if(checkMonth(atoi(fileargs[i][j])))return 1;
+					break;
+				case 4:/*day of week*/
+					if(!checkStar(fileargs[i][j])) break;
+					if(!checkDayWord(fileargs[i][j])) break;
+					if(checkIntArg(fileargs[i][j])){
+						printf("\nError: checkIntArg failed\n");
+						return 1;
+					}
+					if(checkDayWeek(atoi(fileargs[i][j])))return 1;
+					break;
+			}
+		}
+	}
+	printf("\n");
+	return 0;
+}
+
+int checkMonthWord(char *a){
+	for(int i = 0; i < 12; i++){
+		if(!strcmp(a, months[i])) return 0;
+	}
+	return 1; //no match
+}
+
+int checkDayWord(char *a){
+	for(int i = 0; i < 7; i++){
+		if(!strcmp(a,days[i])) return 0;
+	}
+	return 1; //no match
+}
+
+int checkStar(char *a){
+	if(*a  == '*' && a[1] == '\0') return 0;
+	return 1;
+}
+int checkMin(int minute){
 	//Is minute within range
-	if(minute < 0 || minute > 59) return -1;
+	if(minute < 0 || minute > 59) return 1;
 	//return 0 for in range
 	return 0;
 }
 
-int checkhour(int hour){
+int checkHour(int hour){
 	//Is hour within range
-	if(hour <0 || hour > 23) return -1;
+	if(hour < 0 || hour > 23) return 1;
 	//return 0 for in range
 	return 0;
 }
 
-int checkdaymonth(int day){
+int checkDayMonth(int day){
 	//Is day within range
-	if(day < 1 || day > 31) return -1;
+	if(day < 1 || day > 31) return 1;
 	//return 0 for in range
 	return 0;
 }
 
-int checkmonth(int month){
+int checkMonth(int month){
 	//Is month within range
-	if(month < 0 || month > 11) return -1;
+	if(month < 0 || month > 11) return 1;
 	//return 0 for in range
 	return 0;
 }
 
-int checkdayweek(int day){
+int checkDayWeek(int day){
 	//Is year within range
-	if(day < 0 || day > 6) return -1;
+	if(day < 0 || day > 6) return 1;
 	//return 0 for in range
 	return 0;
 }
 
-int checkIntArg(char a){
-	if(a  == '*') return 0;
-	if(a < '0' || a > '9') return -1; //not an integer or *
-	return 0; //within range
+int checkIntArg(char *a){
+	for(; *a != '\0' ; a++){
+		if(*a < '0' || *a > '9') return 1; //not an integer or *
+	}
+	return 0;
 }
 
 int checkArgLen(int maxlen, int charpos){
@@ -101,14 +189,14 @@ void addArg(char *dest, char *word, int wordlen){
 	return;
 }
 
-void printCron(char cronWords[][6][COMMAND_MAX], int numCron, int numargs){
+void printargs(char fileargs[][6][COMMAND_MAX], int numCron, int numargs){
 
 	printf("PRINTING %d ARGUMENTS FROM ARRAY:\n", numCron);
 	//each line
 	for(int i = 0; i < numCron; i++){
 
 		for(int j = 0; j < numargs; j++){
-			printf("%s\t", cronWords[i][j]);
+			printf("%s\t", fileargs[i][j]);
 		}
 		printf("\n");
 	}
@@ -121,17 +209,17 @@ int getWordLen(int Type, int wordno){
 
 	int wordlen;
 	switch(Type){
-		case 0:if( wordno < 4){
+		case 0:if( wordno < 3){//ints
 				wordlen = 2; 
-			} else if( wordno < 5){
+			} else if( wordno < 4){
 				wordlen = 3; // day e.g. "mon"
 			} else{
-				wordlen = COMMAND_MAX -1;
+				wordlen = COMMAND_MAX;
 			}
 			break;
 	       
 		case 1:	if(wordno == 0) wordlen = COMMAND_MAX;
-			else wordlen = 10;//max 10 digits long
+			else wordlen = 10;//max 10 digits long for int
 			break;
 	       
 	}
@@ -139,7 +227,13 @@ int getWordLen(int Type, int wordno){
 	
 }
 
-int getcron(char *argv, char cronWords[][6][40], int* numCron, int Type){
+
+/* === getFile ===
+ * fill array fileargs with strings of correct length
+ * fails when argument incorrect length, incorrect # of arguments each line.
+ * */
+
+int getFile(char *argv, char fileargs[][6][40], int* numCron, int Type){
 
 	const char *CRONTAB_FILE = argv;
 	//open files
@@ -214,9 +308,13 @@ int getcron(char *argv, char cronWords[][6][40], int* numCron, int Type){
 
 			startp = currentp; //move start pointer to word end
 			word[wordlength] = '\0'; //add null byte
-			addArg(cronWords[lineNo][i], word, wordlength);
+			addArg(fileargs[lineNo][i], word, wordlength);
 			
 		}	
+		if(!(*currentp == '\n' || *currentp == '\t')){
+			printf("Error: Too many arguments or line not newline terminated, line %d\n", lineNo);
+			exit(EXIT_FAILURE);
+		}
 		lineNo++;
 	}
 	*numCron = lineNo;
@@ -226,5 +324,4 @@ int getcron(char *argv, char cronWords[][6][40], int* numCron, int Type){
 
 
 }
-
 
