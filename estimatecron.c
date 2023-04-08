@@ -14,6 +14,35 @@
 const char months[12][4] = {"jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov"};
 const char days[7][4] = {"mon", "tue", "wed", "thu", "fri", "sat", "sun"};
 
+int checkmin(int minute);
+int checkhour(int hour);
+int checkdaymonth(int day);
+int checkmonth(int month);
+int checkdayweek(int day);
+int checkIntArg(char a);
+int checkArgLen(int maxlen, int charpos);
+void addArg(char *dest, char *word, int wordlen);
+void printCron(char cronWords[][6][COMMAND_MAX], int numCron, int numargs);
+int getWordLen(int Type, int wordno);
+int getcron(char *argv, char cronWords[][6][40], int* numCron, int Type);
+
+int main(int argc, char *argv[]){
+
+	char cronwords[LINE_AMOUNT][6][COMMAND_MAX];
+	char estimates[LINE_AMOUNT][6][COMMAND_MAX];
+	int numcron = 0;
+	int numestimates = 0;
+	int* numcronp = &numcron;
+	int* numestimatesp = &numestimates;
+
+	getcron(argv[2],cronwords, numcronp, 0);//crontab
+	getcron(argv[3],estimates, numestimatesp, 1); 
+	printf("COMPLETED.  FOUND %d VALID LINES...........\n", numcron);
+	printCron(cronwords, numcron, 6);
+	printCron(estimates, numestimates, 2);
+	return 0;
+}	
+
 int checkmin(int minute){
 	//Is minute within range
 	if(minute < 0 || minute > 59) return -1;
@@ -88,6 +117,7 @@ void printCron(char cronWords[][6][COMMAND_MAX], int numCron, int numargs){
 }
 
 int getWordLen(int Type, int wordno){
+	/* Type = 0 crontab-file, 1 is estimates-file*/
 
 	int wordlen;
 	switch(Type){
@@ -126,30 +156,21 @@ int getcron(char *argv, char cronWords[][6][40], int* numCron, int Type){
 	printf("\n\t***** %s *****\n\n", CRONTAB_FILE);
 	while( fgets(line, LINE_SIZE, crontab) != NULL && lineNo < LINE_AMOUNT){
 
-		//ignore comments
-		if(line[0] == '#') continue;
 		printf("%s", line);
 		
 		char* startp = line; //start position of current word
 		char* currentp = line; //char window over current word
 		int wordlen;
 
+		//numver of args in each line
 		int argnum;
-		//numver of args in each line (1 is crontab, 2 is estimates)
-		switch(Type){
-			case 0: argnum = 6;
-				break;
-
-			case 1: argnum = 2;
-				break;
-
-			default: argnum = 6;	
-				break;
-		}
-
+		argnum = 6 - (Type*4);
+		
+		/*ignore comment lines*/
+		if(*startp == '#') continue;
+		
 		//Iterate through each word in the line
 		for( int i = 0 ; i < argnum ; ++i){
-
 
 			//set max word length
 			wordlen = getWordLen(Type, i);
@@ -160,6 +181,11 @@ int getcron(char *argv, char cronWords[][6][40], int* numCron, int Type){
 			//find the first character in the word
 			while(*startp== ' ' || *startp == '\t'){
 				++startp;
+				if(*startp == '\r' || *startp == '\n'){
+					/*newline char before full arg set*/
+					printf("INCOMPLETE LINE\n");	
+					exit(EXIT_FAILURE);
+				}
 			}
 
 			currentp = startp;
@@ -168,21 +194,12 @@ int getcron(char *argv, char cronWords[][6][40], int* numCron, int Type){
 				if(*currentp== '\n'
 					|| *currentp== '\r'){
 					//newline before complete argument set
-					if( (i < 4 || currentp == startp)&& Type ==0){
+					if(i < (argnum-1)){
 						printf("INCOMPLETE LINE\n");
 						exit(EXIT_FAILURE);
-						break;
 					}
 					else break;
 				}
-
-				if(i < 4 && Type == 0){
-					if(checkIntArg(*currentp)){
-						//int argument incorrect char
-						printf("Error: Line %d.  Incorrect value for argument type integer.\n", lineNo);
-						exit(EXIT_FAILURE);
-					}
-				} 				
 				//add char to current word
 				*wordp = *currentp;
 				currentp++;
@@ -210,19 +227,4 @@ int getcron(char *argv, char cronWords[][6][40], int* numCron, int Type){
 
 }
 
-int main(int argc, char *argv[]){
 
-	char cronwords[LINE_AMOUNT][6][COMMAND_MAX];
-	char estimates[LINE_AMOUNT][6][COMMAND_MAX];
-	int numcron = 0;
-	int numestimates = 0;
-	int* numcronp = &numcron;
-	int* numestimatesp = &numestimates;
-
-	getcron(argv[2],cronwords, numcronp, 0);//crontab
-	getcron(argv[3],estimates, numestimatesp, 1); 
-	printf("COMPLETED.  FOUND %d ARGUMENTS...........\n", numcron);
-	printCron(cronwords, numcron, 6);
-	printCron(estimates, numestimates, 2);
-	return 0;
-}	
