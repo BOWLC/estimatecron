@@ -11,9 +11,27 @@
 #define LINE_AMOUNT 20
 #define COMMAND_MAX 40
 
+/* CRONTAB structure for simulating schedule
+ * when int = -1, '*' equivalent; program will run on any value.
+ * */
+typedef struct
+{
+	int min;
+	int hour;
+	int day;
+	int month;
+	int dayweek;
+	char *name;
+	int time;
+} CRONTAB;
+
 const char months[12][4] = {"jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov"};
 const char days[7][4] = {"mon", "tue", "wed", "thu", "fri", "sat", "sun"};
 
+void makeCrontab(char cronargs[][6][COMMAND_MAX], char estargs[][6][COMMAND_MAX], int numcron, int numestimates, CRONTAB file[]);
+int wordInt(char *word);
+int dayInt(char *dayweek);
+int monthInt(char *month);
 int checkMonthWord(char *arg);
 int checkDayWord(char *arg);
 int checkStar(char *arg);
@@ -45,12 +63,66 @@ int main(int argc, char *argv[]){
 	printf("COMPLETED.  FOUND %d VALID LINES...........\n", numcron);
 	printargs(cronwords, numcron, 6);
 	printargs(estimates, numestimates, 2);
+
 	if(checkCron(cronwords, numcron)){
 		printf("\nError: Incorrect argument values in cron file\n");
 		exit(EXIT_FAILURE);
 	}
+	if(checkEstimates(estimates, numcron)){
+		printf("\nError: Incorrect argument values in estimates file\n");
+		exit(EXIT_FAILURE);
+	}
+	//files valid, fill structs
+	CRONTAB schedule[numcron];
+	makeCrontab(cronwords, estimates, numcron, numestimates, schedule);
+	printf("PRINTING CRONTAB FROM STRUCTURE\n");
+	CRONTAB pr = schedule[1];
+	printf("%s: %d, %d, %d, %d, %d, takes %d mintes\n",pr.name, pr.min, pr.hour, pr.day, pr.month, pr.dayweek, pr.time);
+
 	return 0;
 }	
+
+void makeCrontab(char cronargs[][6][COMMAND_MAX], char estargs[][6][COMMAND_MAX], int numcron, int numestimates, CRONTAB schedule[]){
+	for(int i = 0 ; i < numcron ; i++){
+		schedule[i].name = cronargs[i][5];
+		for(int j = 0; j < numestimates; j++){
+			if(!strcmp(schedule[i].name,estargs[j][0])){
+				schedule[i].time = atoi(estargs[j][1]);
+				break;
+			}
+		}
+		schedule[i].min = wordInt(cronargs[i][0]);
+		schedule[i].hour = wordInt(cronargs[i][1]);
+		schedule[i].day = wordInt(cronargs[i][2]);
+		schedule[i].month = monthInt(cronargs[i][3]);
+		schedule[i].dayweek = dayInt(cronargs[i][4]);
+	}
+}
+
+int wordInt(char *mhd){
+	if(*mhd == '*') return -1;
+	return atoi(mhd);
+}
+
+/* TODO: use hashmaps in dayInt, monthInt
+ * */
+int dayInt(char *dayweek){
+	if(*dayweek == '*') return -1;
+	for(int i = 0 ; i < 7; i++){
+		if(!strcmp(dayweek,days[i])) return i;
+	}
+	printf("Error in dayInt, no match\n");
+	return -2;
+}
+
+int monthInt(char *month){
+	if(*month == '*') return -1;
+	for(int i = 0; i < 12; i++){
+		if(!strcmp(month,days[i])) return i;
+	}
+	printf("Error in monthInt, no match\n");
+	return -2;
+}
 
 /* ===checkCron===
  * check each argument is correct type and range in cron file
@@ -65,48 +137,43 @@ int checkCron(char fileargs[][6][40], int linenum){
 			switch(j){
 				case 0:/*minute*/
 					if(!checkStar(fileargs[i][j])) break;
-					if(checkIntArg(fileargs[i][j])){
-						printf("\nError: checkIntArg failed\n");
-						return 1;
-					}
+					if(checkIntArg(fileargs[i][j]))	return 1;
 					if(checkMin(atoi(fileargs[i][j])))return 1;
 					break;
 				case 1:/*hour*/
 					if(!checkStar(fileargs[i][j])) break;
-					if(checkIntArg(fileargs[i][j])){
-						printf("\nError: checkIntArg failed\n");
-						return 1;
-					}
+					if(checkIntArg(fileargs[i][j])) return 1;
 					if(checkHour(atoi(fileargs[i][j])))return 1;
 					break;
 				case 2:/*day of month*/
 					if(!checkStar(fileargs[i][j])) break;
-					if(checkIntArg(fileargs[i][j])){
-						printf("\nError: checkIntArg failed\n");
-						return 1;
-					}
+					if(checkIntArg(fileargs[i][j])) return 1;
 					if(checkDayMonth(atoi(fileargs[i][j])))return 1;
 					break;
 				case 3:/*month*/
 					if(!checkStar(fileargs[i][j])) break;
 					if(!checkMonthWord(fileargs[i][j])) break;
-					if(checkIntArg(fileargs[i][j])){
-						printf("\nError: checkIntArg failed\n");
-						return 1;
-					}
+					if(checkIntArg(fileargs[i][j])) return 1;
 					if(checkMonth(atoi(fileargs[i][j])))return 1;
 					break;
 				case 4:/*day of week*/
 					if(!checkStar(fileargs[i][j])) break;
 					if(!checkDayWord(fileargs[i][j])) break;
-					if(checkIntArg(fileargs[i][j])){
-						printf("\nError: checkIntArg failed\n");
-						return 1;
-					}
+					if(checkIntArg(fileargs[i][j])) return 1;
 					if(checkDayWeek(atoi(fileargs[i][j])))return 1;
 					break;
 			}
 		}
+	}
+	printf("\n");
+	return 0;
+}
+
+int checkEstimates(char fileargs[][6][40], int linenum){
+	printf("CHECKING ESTIMATES FILE --------\n");
+	for(int i = 0; i < linenum; i++){
+		printf("\n\t%s/%d",fileargs[i][1], atoi(fileargs[i][1]));
+		if(checkIntArg(fileargs[i][1])) return 1;
 	}
 	printf("\n");
 	return 0;
@@ -321,7 +388,5 @@ int getFile(char *argv, char fileargs[][6][40], int* numCron, int Type){
 	//close files
 	fclose(crontab);
 	return 0;
-
-
 }
 
